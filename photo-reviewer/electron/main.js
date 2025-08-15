@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import path from 'node:path'
 import url, { fileURLToPath } from 'node:url'
-import { generateReviewPackage } from './review.js'
+import { spawn } from 'node:child_process'
+import { generateReviewPackage, generateReviewPackageFromFiles } from './review.js'
 import { applySelectionFile } from './selection.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -61,11 +62,20 @@ ipcMain.handle('dialog:selectFile', async (_event, filters) => {
 })
 
 ipcMain.handle('generate:reviewPackage', async (_event, payload) => {
-	const { sourceDir, outputDir, options } = payload
+	const { sourceDir, outputDir, options, files } = payload
+	if (files && files.length) {
+		return generateReviewPackageFromFiles({ files, outputDir, options })
+	}
 	return generateReviewPackage({ sourceDir, outputDir, options })
 })
 
 ipcMain.handle('apply:selection', async (_event, payload) => {
 	const { selectionFile, originalsDir, outputDir } = payload
 	return applySelectionFile({ selectionFile, originalsDir, outputDir })
+})
+
+ipcMain.handle('path:open', async (_event, absPath) => {
+	if (!absPath) return false
+	await shell.openPath(absPath)
+	return true
 })

@@ -5,6 +5,8 @@ import Jimp from 'jimp'
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png'])
 
+function toPosix(p) { return p.replace(/\\/g, '/') }
+
 async function enumerateImagesRecursive(dirPath, baseDir = dirPath, out = []) {
 	const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
 	for (const e of entries) {
@@ -58,11 +60,11 @@ export async function generateReviewPackage({ sourceDir, outputDir, options }) {
 	let index = 0
 	for (const item of images) {
 		index += 1
-		const base = item.rel
-		const dest = path.join(thumbsDir, base).replace(/\\/g, '/')
+		const base = toPosix(item.rel)
+		const dest = toPosix(path.join(thumbsDir, base))
 		await fsExtra.ensureDir(path.dirname(dest))
 		const outPath = await compressImage(item.abs, dest, { quality, maxSize })
-		const rel = path.relative(pkgDir, outPath).replace(/\\/g, '/')
+		const rel = toPosix(path.relative(pkgDir, outPath))
 		selectionRecords.push({ id: index.toString().padStart(5, '0'), filename: base, relPath: rel, status: 'pending', comment: '' })
 	}
 
@@ -73,4 +75,33 @@ export async function generateReviewPackage({ sourceDir, outputDir, options }) {
 	await fs.promises.writeFile(path.join(pkgDir, 'selection_template.txt'), txtLines.join('\n'), 'utf8')
 
 	return { count: images.length, outputDir: pkgDir }
+}
+
+export async function generateReviewPackageFromFiles({ files, outputDir, options }) {
+	const { quality = 60, maxSize = 1600 } = options || {}
+	const valid = files.filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()))
+	if (valid.length === 0) return { count: 0, outputDir }
+
+	const pkgDir = path.join(outputDir, `review-${Date.now()}`)
+	const thumbsDir = path.join(pkgDir, 'photos')
+	await fsExtra.ensureDir(thumbsDir)
+
+	const selectionRecords = []
+	let index = 0
+	for (const abs of valid) {
+		index += 1
+		const base = path.basename(abs)
+		const dest = toPosix(path.join(thumbsDir, base))
+		await fsExtra.ensureDir(path.dirname(dest))
+		const outPath = await compressImage(abs, dest, { quality, maxSize })
+		const rel = toPosix(path.relative(pkgDir, outPath))
+		selectionRecords.push({ id: index.toString().padStart(5, '0'), filename: base, relPath: rel, status: 'pending', comment: '' })
+	}
+
+	await fsExtra.copy(path.join(process.cwd(), 'viewer'), path.join(pkgDir))
+	await fs.promises.writeFile(path.join(pkgDir, 'photos.json'), JSON.stringify(selectionRecords, null, 2), 'utf8')
+	const txtLines = selectionRecords.map(r => `${r.filename}\t${r.status}\t${r.comment}`)
+	await fs.promises.writeFile(path.join(pkgDir, 'selection_template.txt'), txtLines.join('\n'), 'utf8')
+
+	return { count: valid.length, outputDir: pkgDir }
 }

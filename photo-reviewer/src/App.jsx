@@ -1,134 +1,113 @@
 import React, { useState } from 'react'
 
-function Row({ label, value, onPick, placeholder, type = 'text', disabled = false }) {
+function Row({ label, children }) {
 	return (
 		<div className="row">
 			<label>{label}</label>
-			<input type={type} value={value} onChange={() => {}} placeholder={placeholder} disabled />
-			<button onClick={onPick} disabled={disabled}>Browse</button>
+			<div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+				{children}
+			</div>
 		</div>
 	)
 }
 
 export default function App() {
-	const [tab, setTab] = useState('create')
-
-	// Create package state
+	const [imagesSource, setImagesSource] = useState('folder') // 'folder' | 'files'
 	const [sourceDir, setSourceDir] = useState('')
+	const [selectedFiles, setSelectedFiles] = useState([])
 	const [outputDir, setOutputDir] = useState('')
 	const [quality, setQuality] = useState(60)
 	const [maxSize, setMaxSize] = useState(1600)
-	const [isGenerating, setIsGenerating] = useState(false)
-	const [genLog, setGenLog] = useState('')
+	const [log, setLog] = useState('')
+	const [busy, setBusy] = useState(false)
 
-	// Apply selection state
-	const [selectionFile, setSelectionFile] = useState('')
-	const [originalsDir, setOriginalsDir] = useState('')
-	const [applyOutputDir, setApplyOutputDir] = useState('')
-	const [isApplying, setIsApplying] = useState(false)
-	const [applyLog, setApplyLog] = useState('')
-
-	async function pickSourceDir() {
+	async function pickFolder(setter) {
 		const dir = await window.api.selectFolder()
-		if (dir) setSourceDir(dir)
-	}
-	async function pickOutputDir() {
-		const dir = await window.api.selectFolder()
-		if (dir) setOutputDir(dir)
-	}
-	async function pickSelectionFile() {
-		const file = await window.api.selectFile([{ name: 'Selection Text', extensions: ['txt'] }])
-		if (file) setSelectionFile(file)
-	}
-	async function pickOriginalsDir() {
-		const dir = await window.api.selectFolder()
-		if (dir) setOriginalsDir(dir)
-	}
-	async function pickApplyOutputDir() {
-		const dir = await window.api.selectFolder()
-		if (dir) setApplyOutputDir(dir)
+		if (dir) setter(dir)
 	}
 
-	async function handleGenerate() {
-		if (!sourceDir || !outputDir) {
-			setGenLog('Please choose both Source and Output folders.')
-			return
-		}
-		setIsGenerating(true)
-		setGenLog('Starting...')
+	async function pickFiles() {
+		const file = await window.api.selectFile([{ name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }])
+		// Single-file dialog in this simple bridge; instruct user to use a folder for many files
+		if (file) setSelectedFiles([file])
+	}
+
+	async function handleGenerateReview() {
+		if (!outputDir) return setLog('Choose Output folder')
+		if (imagesSource === 'folder' && !sourceDir) return setLog('Choose Source folder')
+		if (imagesSource === 'files' && selectedFiles.length === 0) return setLog('Choose at least one image')
+		setBusy(true)
+		setLog('Generating review package...')
 		try {
-			const res = await window.api.generateReviewPackage({
-				sourceDir,
+			const payload = {
 				outputDir,
 				options: { quality: Number(quality), maxSize: Number(maxSize) }
-			})
-			setGenLog(`Done. ${res.count} photos processed. Review folder: ${res.outputDir}`)
+			}
+			if (imagesSource === 'folder') payload.sourceDir = sourceDir
+			else payload.files = selectedFiles
+			const res = await window.api.generateReviewPackage(payload)
+			setLog(`Review ready at: ${res.outputDir}`)
 		} catch (e) {
-			setGenLog(`Error: ${e.message || e}`)
-		} finally {
-			setIsGenerating(false)
-		}
+			setLog(`Error: ${e.message || e}`)
+		} finally { setBusy(false) }
 	}
 
-	async function handleApply() {
-		if (!selectionFile || !originalsDir || !applyOutputDir) {
-			setApplyLog('Please choose selection file, originals folder and output folder.')
-			return
-		}
-		setIsApplying(true)
-		setApplyLog('Copying originals...')
+	async function handleImportSelection() {
+		const selectionPath = await window.api.selectFile([{ name: 'Selection Text', extensions: ['txt'] }])
+		if (!selectionPath) return
+		if (!sourceDir) return setLog('Choose Originals folder (source of full-quality)')
+		const copyOut = outputDir || (await window.api.selectFolder())
+		if (!copyOut) return
+		setBusy(true)
+		setLog('Applying selection and copying originals...')
 		try {
-			const res = await window.api.applySelection({
-				selectionFile,
-				originalsDir,
-				outputDir: applyOutputDir
-			})
-			setApplyLog(`Done. ${res.copied} files copied to ${res.outputDir}`)
+			const res = await window.api.applySelection({ selectionFile: selectionPath, originalsDir: sourceDir, outputDir: copyOut })
+			setLog(`Copied ${res.copied} files to: ${res.outputDir}`)
 		} catch (e) {
-			setApplyLog(`Error: ${e.message || e}`)
-		} finally {
-			setIsApplying(false)
-		}
+			setLog(`Error: ${e.message || e}`)
+		} finally { setBusy(false) }
 	}
 
 	return (
 		<div className="container">
 			<header>
 				<h1>Photo Reviewer</h1>
-				<nav>
-					<button className={tab === 'create' ? 'active' : ''} onClick={() => setTab('create')}>Create Review Package</button>
-					<button className={tab === 'apply' ? 'active' : ''} onClick={() => setTab('apply')}>Apply Selection</button>
-				</nav>
 			</header>
 
-			{tab === 'create' && (
-				<section>
-					<Row label="Source folder" value={sourceDir} onPick={pickSourceDir} placeholder="Choose source" />
-					<Row label="Output folder" value={outputDir} onPick={pickOutputDir} placeholder="Choose output" />
-					<div className="row">
-						<label>Quality (1-100)</label>
-						<input type="number" value={quality} onChange={(e) => setQuality(e.target.value)} min={1} max={100} />
-						<label>Max size (px)</label>
-						<input type="number" value={maxSize} onChange={(e) => setMaxSize(e.target.value)} min={400} max={8000} />
-					</div>
-					<div className="actions">
-						<button onClick={handleGenerate} disabled={isGenerating}>{isGenerating ? 'Generating…' : 'Generate Review Package'}</button>
-					</div>
-					{genLog && <pre className="log">{genLog}</pre>}
-				</section>
-			)}
+			<Row label="Add images">
+				<select value={imagesSource} onChange={e => setImagesSource(e.target.value)}>
+					<option value="folder">From folder</option>
+					<option value="files">Pick files</option>
+				</select>
+				{imagesSource === 'folder' ? (
+					<>
+						<input value={sourceDir} placeholder="Source folder" disabled />
+						<button onClick={() => pickFolder(setSourceDir)}>Browse</button>
+					</>
+				) : (
+					<>
+						<input value={selectedFiles.join(', ')} placeholder="Selected files" disabled />
+						<button onClick={pickFiles}>Pick</button>
+					</>
+				)}
+			</Row>
 
-			{tab === 'apply' && (
-				<section>
-					<Row label="Selection file (.txt)" value={selectionFile} onPick={pickSelectionFile} placeholder="Choose selection.txt" />
-					<Row label="Originals folder" value={originalsDir} onPick={pickOriginalsDir} placeholder="Choose originals" />
-					<Row label="Output folder" value={applyOutputDir} onPick={pickApplyOutputDir} placeholder="Choose output" />
-					<div className="actions">
-						<button onClick={handleApply} disabled={isApplying}>{isApplying ? 'Copying…' : 'Copy Selected Originals'}</button>
-					</div>
-					{applyLog && <pre className="log">{applyLog}</pre>}
-				</section>
-			)}
+			<Row label="Output folder">
+				<input value={outputDir} placeholder="Output folder" disabled />
+				<button onClick={() => pickFolder(setOutputDir)}>Browse</button>
+			</Row>
+
+			<Row label="Quality / Size">
+				<input type="number" value={quality} onChange={(e) => setQuality(e.target.value)} min={1} max={100} />
+				<input type="number" value={maxSize} onChange={(e) => setMaxSize(e.target.value)} min={400} max={8000} />
+			</Row>
+
+			<div className="actions">
+				<button onClick={handleGenerateReview} disabled={busy}>{busy ? 'Working…' : 'Generate Client Review'}</button>
+				<button onClick={handleImportSelection} disabled={busy}>Import Selection (.txt) and Copy Originals</button>
+			</div>
+
+			{log && <pre className="log">{log}</pre>}
 		</div>
 	)
 }
