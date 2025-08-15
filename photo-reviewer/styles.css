@@ -1,0 +1,13 @@
+body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; }
+.container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+nav button { margin-right: 8px; }
+nav .active { background: #0ea5e9; color: white; }
+.row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.row label { width: 160px; color: #475569; }
+.row input[type="text"], .row input[disabled] { flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; }
+.row input[type="number"] { width: 120px; padding: 6px; }
+button { padding: 8px 12px; border: 1px solid #94a3b8; border-radius: 6px; background: #f8fafc; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+.actions { margin-top: 12px; }
+.log { background: #0b1220; color: #e2e8f0; padding: 12px; border-radius: 6px; white-space: pre-wrap; }

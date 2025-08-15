@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Photo Selection Viewer</title>
+		<link rel="stylesheet" href="./styles.css">
+	</head>
+	<body>
+		<header>
+			<h1>Photo Selection Viewer</h1>
+			<div class="toolbar">
+				<select id="filter">
+					<option value="all">All</option>
+					<option value="selected">Selected</option>
+					<option value="pending">Pending</option>
+					<option value="rejected">Rejected</option>
+				</select>
+				<button id="export">Export Selection (.txt)</button>
+			</div>
+		</header>
+		<main id="grid"></main>
+		<script src="./app.js"></script>
+	</body>
+</html>
