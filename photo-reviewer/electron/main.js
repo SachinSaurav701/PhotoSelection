@@ -61,6 +61,12 @@ ipcMain.handle('dialog:selectFile', async (_event, filters) => {
 	return result.filePaths[0]
 })
 
+ipcMain.handle('dialog:selectFiles', async (_event, filters) => {
+	const result = await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], filters })
+	if (result.canceled || result.filePaths.length === 0) return []
+	return result.filePaths
+})
+
 ipcMain.handle('generate:reviewPackage', async (_event, payload) => {
 	const { sourceDir, outputDir, options, files } = payload
 	if (files && files.length) {

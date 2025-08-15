@@ -27,9 +27,8 @@ export default function App() {
 	}
 
 	async function pickFiles() {
-		const file = await window.api.selectFile([{ name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }])
-		// Single-file dialog in this simple bridge; instruct user to use a folder for many files
-		if (file) setSelectedFiles([file])
+		const files = await window.api.selectFiles([{ name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }])
+		if (files && files.length) setSelectedFiles(files)
 	}
 
 	async function handleGenerateReview() {
