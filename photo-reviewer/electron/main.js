@@ -1,8 +1,11 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'node:path'
-import url from 'node:url'
+import url, { fileURLToPath } from 'node:url'
 import { generateReviewPackage } from './review.js'
 import { applySelectionFile } from './selection.js'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const isDev = !!process.env.VITE_DEV_SERVER_URL
 
